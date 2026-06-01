@@ -66,9 +66,10 @@
             color: #1e293b !important;
             border-radius: 16px;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
-            max-width: 1000px;
-            width: 100%;
-            max-height: 85vh;
+            width: min(1800px, 96vw);
+            max-width: 1800px;
+            height: 90vh;
+            max-height: 95vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -113,19 +114,41 @@
 
         /* 主体布局 */
         .db-body {
-            padding: 24px;
-            overflow-y: auto;
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            overflow: hidden;
+            padding: 0;
+            height: 100%;
             background-color: #ffffff !important;
         }
-        @media (min-width: 768px) {
+
+        @media (min-width: 900px) {
             .db-body {
                 display: grid;
-                grid-template-columns: 240px 1fr;
+                grid-template-columns: 260px minmax(0, 1fr);
+                gap: 0;
             }
+        }
+
+        /* 工具栏 */
+        .db-toolbar {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #fafafa;
+        }
+
+        /* 全屏图库容器 */
+        .db-gallery-fullpage {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #ffffff;
         }
 
         /* 左侧面板 */
@@ -133,14 +156,39 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
+            padding: 16px;
+            border-right: 1px solid #e2e8f0;
+            background: #fafafa;
+            overflow-y: auto;
         }
-        .db-box {
-            background-color: #f8fafc !important;
+
+        /* 右侧主面板 */
+        .db-main {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        /* 工具栏样式 */
+        .db-toolbar-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
             border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 14px;
+            border-radius: 6px;
+            background: #ffffff;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
         }
-        .db-label {
+        .db-toolbar-btn:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        .db-box {
             display: block;
             font-size: 11px;
             font-weight: bold;
@@ -328,11 +376,20 @@
         /* 画廊网格 */
         .db-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            grid-template-columns: repeat(5, minmax(180px, 1fr));
             gap: 12px;
             overflow-y: auto;
             flex: 1;
-            padding-right: 4px;
+            padding-right: 8px;
+            align-content: start;
+        }
+
+        /* 图库包装器 - 独立滚动区域 */
+        .db-grid-wrapper {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         /* 作品卡片 */
@@ -351,17 +408,19 @@
         }
         .db-card-img-wrap {
             position: relative;
-            background-color: #f8fafc;
-            aspect-ratio: 1 / 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            width: 100%;
+            height: 200px;
+            background: #f8fafc;
             overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         .db-card-img {
-            object-fit: cover;
             width: 100%;
             height: 100%;
+            object-fit: contain;
+            display: block;
         }
         .db-card-badge-id {
             position: absolute;
@@ -468,10 +527,52 @@
             text-decoration: underline !important;
             color: #be123c !important;
         }
+
+        /* 分页控件 */
+        .db-pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            border-top: 1px solid #f1f5f9;
+            background-color: #ffffff;
+        }
+        .db-page-btn {
+            cursor: pointer;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 12px;
+            color: #475569;
+            background-color: #ffffff;
+            transition: all 0.15s;
+        }
+        .db-page-btn:hover:not(:disabled) {
+            background-color: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+        .db-page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .db-page-btn.active {
+            background-color: #e11d48;
+            color: #ffffff;
+            border-color: #e11d48;
+        }
+        .db-page-info {
+            font-size: 12px;
+            color: #64748b;
+            min-width: 100px;
+            text-align: center;
+        }
     `;
     document.head.appendChild(styleElement);
 
     let fetchedPosts = [];
+    const PAGE_SIZE = 30;
+    let currentPage = 1;
 
     // ==========================================
     // 2. 写入 DOM 结构
@@ -503,66 +604,58 @@
                 <!-- 身体 -->
                 <div class="db-body">
 
-                    <!-- 左侧边栏 -->
+                    <!-- 左侧控制栏 -->
                     <div class="db-sidebar">
                         <div class="db-box">
-                            <span class="db-label">检索 Tag (画师/角色/万能)</span>
-                            <div style="position: relative;">
-                                <input type="text" id="danbooru-tag-input" class="db-input" placeholder="输入例如: mika_pikazo" autocomplete="off">
-                                <div id="danbooru-suggestions" class="db-suggestions hidden"></div>
-                            </div>
+                            <span class="db-label">检索 Tag</span>
+                            <input type="text" id="danbooru-tag-input" class="db-input" placeholder="例如: mika_pikazo" autocomplete="off">
                             <button id="danbooru-fetch-btn" class="db-btn db-btn-rose" style="width: 100%; margin-top: 12px;">检索作品列表</button>
                             <p id="danbooru-fetch-progress" style="text-align: center; font-size: 10px; margin: 8px 0 0 0; color: #64748b;" class="hidden"></p>
                         </div>
 
                         <div class="db-box">
-                            <span class="db-label">下载延迟间隔</span>
+                            <span class="db-label">下载延迟</span>
                             <div style="display:flex; align-items:center; gap:6px;">
                                 <input type="number" id="danbooru-delay-input" value="1000" min="200" class="db-input" style="width: 80px;">
                                 <span style="font-size:11px; color:#64748b;">毫秒</span>
                             </div>
                         </div>
+
+                        <div class="db-box">
+                            <span class="db-label">批量操作</span>
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                <button id="danbooru-select-all" class="db-btn db-btn-outline" style="flex:1; min-width: 60px;">全选</button>
+                                <button id="danbooru-select-none" class="db-btn db-btn-outline" style="flex:1; min-width: 60px;">清空</button>
+                            </div>
+                            <p id="danbooru-selected-count" style="font-size: 11px; color: #64748b; margin: 8px 0 0 0; text-align: center;">已选中: 0 / 0</p>
+                        </div>
+
+                        <div class="db-box">
+                            <span class="db-label">下载方式</span>
+                            <button id="danbooru-download-seq" class="db-btn db-btn-indigo" style="width: 100%; margin-bottom: 8px;">直接下载</button>
+                            <button id="danbooru-download-zip" class="db-btn db-btn-emerald" style="width: 100%;">打包 ZIP</button>
+                        </div>
                     </div>
 
-                    <!-- 右侧主面板 -->
+                    <!-- 右侧图库区域 -->
                     <div class="db-main">
-                        <div id="danbooru-gallery-container" class="hidden" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
-
-                            <!-- 统计区 -->
-                            <div class="db-gallery-header">
-                                <div>
-                                    <h4 class="db-gallery-title" id="danbooru-artist-title">作品画廊</h4>
-                                    <p class="db-gallery-sub" id="danbooru-selected-count">已选中: 0 / 0</p>
-                                </div>
-                                <div style="display: flex; gap: 6px;">
-                                    <button id="danbooru-select-all" class="db-btn db-btn-outline">全选</button>
-                                    <button id="danbooru-select-none" class="db-btn db-btn-outline">清空</button>
-                                    <button id="danbooru-select-invert" class="db-btn db-btn-outline">反选</button>
-                                </div>
+                        <!-- 全屏图库 -->
+                        <div id="danbooru-gallery-container" class="db-gallery-fullpage hidden">
+                            <div class="db-grid-wrapper">
+                                <div id="danbooru-gallery" class="db-grid"></div>
                             </div>
-
-                            <!-- 导出控制组 -->
-                            <div class="db-download-actions">
-                                <button id="danbooru-download-seq" class="db-btn db-btn-indigo">连续直接下载原画 (推荐)</button>
-                                <button id="danbooru-download-zip" class="db-btn db-btn-emerald">打包 ZIP 原画包</button>
+                            <!-- 分页控件 -->
+                            <div id="danbooru-pagination" class="db-pagination hidden" style="flex-shrink: 0; padding: 12px; display: flex; justify-content: center; gap: 8px; border-top: 1px solid #e2e8f0; background: #fafafa;">
+                                <button id="danbooru-page-prev" class="db-page-btn">上一页</button>
+                                <span id="danbooru-page-info" class="db-page-info">第 1 / 1 页</span>
+                                <button id="danbooru-page-next" class="db-page-btn">下一页</button>
                             </div>
-
-                            <!-- 进度条面板 -->
-                            <div id="danbooru-download-progress-panel" class="db-progress-box hidden">
-                                <p id="danbooru-download-progress-text" class="db-progress-text">准备下载中...</p>
-                                <div class="db-progress-track">
-                                    <div id="danbooru-download-progress-bar" class="db-progress-bar" style="width: 0%"></div>
-                                </div>
-                            </div>
-
-                            <!-- 网格画廊 -->
-                            <div id="danbooru-gallery" class="db-grid"></div>
                         </div>
 
                         <!-- 占位图 -->
-                        <div id="danbooru-placeholder" class="db-placeholder">
+                        <div id="danbooru-placeholder" class="db-placeholder" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
                             <svg style="width:48px; height:48px; margin-bottom:8px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                            <p style="font-size:12px; margin:0;">请点击悬浮按钮（脚本可自动提取当前页面标签）</p>
+                            <p style="font-size:12px; margin:0; text-align:center;">输入 Tag 并点击"检索作品列表"<br>开始浏览和下载</p>
                         </div>
                     </div>
 
@@ -589,6 +682,10 @@
     const placeholder = document.getElementById('danbooru-placeholder');
     const galleryEl = document.getElementById('danbooru-gallery');
     const selectedCountEl = document.getElementById('danbooru-selected-count');
+    const paginationEl = document.getElementById('danbooru-pagination');
+    const pagePrevBtn = document.getElementById('danbooru-page-prev');
+    const pageNextBtn = document.getElementById('danbooru-page-next');
+    const pageInfoEl = document.getElementById('danbooru-page-info');
 
     // ==========================================
     // 3. 模态框开启与高精度自动捕获
@@ -723,6 +820,7 @@
         const limit = 100;
         let lastId = null;
         fetchedPosts = [];
+        currentPage = 1;
 
         fetchBtn.disabled = true;
         fetchBtn.textContent = '读取列表中...';
@@ -764,7 +862,6 @@
             console.log(`[Danbooru Downloader] 列表拉取成功。共计: ${fetchedPosts.length} 篇。数据:`, fetchedPosts);
             fetchProgress.textContent = `检索成功！共拉取 ${fetchedPosts.length} 篇作品数据。`;
             placeholder.classList.add('hidden');
-            document.getElementById('danbooru-artist-title').textContent = `检索 Tag: ${cleanTag} (共 ${fetchedPosts.length} 篇无损原画)`;
             renderGallery();
 
         } catch (err) {
@@ -779,30 +876,50 @@
     fetchBtn.addEventListener('click', window.fetchPosts);
 
     // ==========================================
-    // 6. 渲染网格画廊
+    // 6. 渲染网格画廊（支持分页）
     // ==========================================
     function renderGallery() {
         if (fetchedPosts.length === 0) {
             galleryContainer.classList.add('hidden');
             placeholder.classList.remove('hidden');
+            paginationEl.classList.add('hidden');
             return;
         }
 
         galleryContainer.classList.remove('hidden');
+        
+        const totalPages = Math.ceil(fetchedPosts.length / PAGE_SIZE);
+        const startIndex = (currentPage - 1) * PAGE_SIZE;
+        const endIndex = startIndex + PAGE_SIZE;
+        const currentPagePosts = fetchedPosts.slice(startIndex, endIndex);
 
-        galleryEl.innerHTML = fetchedPosts.map((post) => {
-            // file_url 对应的就是 100% 原始无损大图 (点击 view original 后的高清大图)
+        galleryEl.innerHTML = currentPagePosts.map((post) => {
             const originalUrl = post.file_url || post.large_file_url;
-            const previewUrl = post.preview_file_url || '';
+            let previewUrl = post.preview_url || post.preview_file_url || post.sample_url || '';
+            
+            if (previewUrl) {
+                if (!previewUrl.startsWith('http')) {
+                    if (previewUrl.startsWith('//')) {
+                        previewUrl = `https:${previewUrl}`;
+                    } else if (previewUrl.startsWith('/')) {
+                        previewUrl = `https://${window.location.host}${previewUrl}`;
+                    } else {
+                        previewUrl = `https://${window.location.host}/${previewUrl}`;
+                    }
+                }
+            }
+            
             const sizeText = post.image_width && post.image_height ? `${post.image_width}x${post.image_height}` : '未知';
             const ext = post.file_ext || 'jpg';
             const rating = post.rating ? post.rating.toUpperCase() : 'U';
             const hasOriginal = !!originalUrl;
 
+            console.log(`[Danbooru Downloader] Post ${post.id}: previewUrl=${previewUrl}, hasPreview=${!!previewUrl}`);
+
             return `
                 <div class="db-card" id="tm-card-${post.id}">
                     <div class="db-card-img-wrap">
-                        ${previewUrl ? `<img src="${previewUrl}" class="db-card-img" loading="lazy">` : `<span style="font-size:10px; color:#cbd5e1;">暂无预览</span>`}
+                        ${previewUrl ? `<img src="${previewUrl}" class="db-card-img" loading="lazy" onerror="console.log('Image load failed:', this.src); this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size:10px; color:#cbd5e1;\\'>加载失败</span>';">` : `<span style="font-size:10px; color:#cbd5e1;">暂无预览</span>`}
                         <div class="db-card-badge-id">#${post.id}</div>
                         <div class="db-card-badges">
                             <span class="db-badge db-badge-rating">${rating}</span>
@@ -832,12 +949,36 @@
             `;
         }).join('');
 
+        updatePagination(totalPages);
         updateSelectionCount();
 
         galleryEl.querySelectorAll('.tm-checkbox').forEach(cb => {
             cb.addEventListener('change', updateSelectionCount);
         });
     }
+
+    function updatePagination(totalPages) {
+        if (totalPages <= 1) {
+            paginationEl.classList.add('hidden');
+            return;
+        }
+        
+        paginationEl.classList.remove('hidden');
+        pageInfoEl.textContent = `第 ${currentPage} / ${totalPages} 页`;
+        pagePrevBtn.disabled = currentPage === 1;
+        pageNextBtn.disabled = currentPage === totalPages;
+    }
+
+    function goToPage(page) {
+        const totalPages = Math.ceil(fetchedPosts.length / PAGE_SIZE);
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        renderGallery();
+        galleryEl.scrollTop = 0;
+    }
+
+    pagePrevBtn.addEventListener('click', () => goToPage(currentPage - 1));
+    pageNextBtn.addEventListener('click', () => goToPage(currentPage + 1));
 
     function updateSelectionCount() {
         const checked = galleryEl.querySelectorAll('.tm-checkbox:checked').length;
